@@ -1,0 +1,9 @@
+# Rahasia & berkas milik server — TIDAK masuk git
+.env
+.env.*
+!.env.example
+storage/uploads/
+storage/cache/
+storage/ratelimit/
+storage/*.log
+vendor/
