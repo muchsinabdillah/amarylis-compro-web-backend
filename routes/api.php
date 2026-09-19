@@ -17,9 +17,11 @@ declare(strict_types=1);
 use Controllers\AdminController;
 use Controllers\AuthController;
 use Controllers\FacilityController;
+use Controllers\McuPerusahaanController;
 use Controllers\MediaController;
 use Controllers\PageController;
 use Controllers\PasienAuthController;
+use Controllers\PerusahaanAuthController;
 use Controllers\PesananController;
 use Controllers\PublicController;
 use Controllers\ReservasiController;
@@ -43,6 +45,8 @@ return static function (Router $r): void {
     $penggun  = new UserController();
     $seo      = new SeoController();
     $pasienAuth = new PasienAuthController();
+    $perusahaanAuth = new PerusahaanAuthController();
+    $mcuPerusahaan  = new McuPerusahaanController();
     $reservasi  = new ReservasiController();
     $pesanan    = new PesananController();
 
@@ -81,6 +85,33 @@ return static function (Router $r): void {
     // =================================================================
     $r->post('/api/pasien/daftar', [$pasienAuth, 'daftar'], [Middleware::batasLaju('masuk', Env::int('RATE_LIMIT_LOGIN', 8))]);
     $r->post('/api/pasien/masuk',  [$pasienAuth, 'masuk'],  [Middleware::batasLaju('masuk', Env::int('RATE_LIMIT_LOGIN', 8))]);
+
+    // =================================================================
+    //  Portal MCU perusahaan
+    //
+    //  Kredensialnya diperiksa di SIMRS (masternya di sana), website hanya
+    //  menerbitkan sesi. Laju masuk dibatasi sama ketatnya dengan portal
+    //  pasien — ini pintu tebak sandi.
+    // =================================================================
+    $r->post('/api/perusahaan/masuk', [$perusahaanAuth, 'masuk'], [Middleware::batasLaju('masuk', Env::int('RATE_LIMIT_LOGIN', 8))]);
+
+    $r->grup('/api/perusahaan', [Middleware::batasLaju('perusahaan', 300), Middleware::authPerusahaan()],
+        static function (Router $r) use ($perusahaanAuth, $mcuPerusahaan) {
+        $r->get('/saya', [$perusahaanAuth, 'saya']);
+
+        // Unggahan peserta MCU. perusahaan_id diambil dari token di dalam
+        // controller — tidak pernah dari badan permintaan.
+        $r->get('/mcu/paket',              [$mcuPerusahaan, 'paket']);
+        $r->get('/mcu/batch',              [$mcuPerusahaan, 'daftar']);
+        $r->post('/mcu/batch',             [$mcuPerusahaan, 'unggah']);
+        $r->get('/mcu/batch/{no}',         [$mcuPerusahaan, 'detail']);
+        $r->post('/mcu/batch/{no}/batal',  [$mcuPerusahaan, 'batal']);
+
+        // Hasil MCU / lab / radiologi karyawan, dan angka ringkas untuk dasbor.
+        $r->get('/mcu/ringkas',            [$mcuPerusahaan, 'ringkas']);
+        $r->get('/mcu/hasil',              [$mcuPerusahaan, 'hasil']);
+        $r->get('/mcu/hasil/{id}',         [$mcuPerusahaan, 'hasilDetail']);
+    });
 
     // Pasien — wajib token pasien (tabel pasien_akun; token admin ditolak).
     $r->grup('/api/pasien', [Middleware::batasLaju('pasien', 300), Middleware::authPasien()],

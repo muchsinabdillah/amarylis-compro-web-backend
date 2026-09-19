@@ -198,6 +198,47 @@ final class Middleware
     }
 
     /**
+     * Sesi portal MCU perusahaan.
+     *
+     * Berbeda dari authPasien(), di sini TIDAK ada pembacaan ulang ke basis
+     * data: kredensial perusahaan tinggal di SIMRS, dan menembak SIMRS pada
+     * setiap permintaan akan membuat portal lambat sekaligus ikut mati saat
+     * SIMRS sedang bermasalah. Sebagai gantinya umur token dipersempit
+     * (lihat PerusahaanAuthService::TTL_MENIT), sehingga penonaktifan akun
+     * paling lama tertunda selama sisa umur token.
+     */
+    public static function authPerusahaan(): callable
+    {
+        return static function (Request $req): void {
+            $header = $req->header('Authorization') ?? '';
+            if (!preg_match('/^Bearer\s+(.+)$/i', trim($header), $m)) {
+                throw HttpException::takSah('Token tidak disertakan.');
+            }
+            try {
+                $klaim = Jwt::periksa(trim($m[1]));
+            } catch (\Throwable $e) {
+                throw HttpException::takSah($e->getMessage());
+            }
+            if (($klaim['tipe'] ?? null) !== 'perusahaan') {
+                throw HttpException::takSah('Token bukan untuk akun perusahaan.');
+            }
+            $idPerusahaan = (int) ($klaim['perusahaan_id'] ?? 0);
+            if ($idPerusahaan <= 0) {
+                throw HttpException::takSah('Token tidak menyebut perusahaan.');
+            }
+
+            $req->setAuth([
+                'sub'             => (int) ($klaim['sub'] ?? 0),
+                'perusahaan_id'   => $idPerusahaan,
+                'nama_perusahaan' => $klaim['nama_perusahaan'] ?? '',
+                'email'           => $klaim['email'] ?? '',
+                'tipe'            => 'perusahaan',
+                'izin'            => [],
+            ]);
+        };
+    }
+
+    /**
      * Wewenang yang ditentukan modul pada jalur.
      *
      * Rute konten dipakai bersama enam modul; menuliskan enam rute yang sama
