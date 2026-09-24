@@ -75,6 +75,14 @@ return static function (Router $r): void {
     $r->get('/sitemap.xml', [$seo, 'sitemap'], [Middleware::batasLaju('publik')]);
     $r->get('/robots.txt',  [$seo, 'robots'],  [Middleware::batasLaju('publik')]);
 
+    /*
+     * Kerangka HTML situs dengan meta dan data terstruktur yang sudah terisi
+     * sesuai alamat yang diminta. Dipanggil nginx untuk setiap permintaan
+     * halaman di domain situs — lihat PrarenderController.
+     */
+    $r->get('/prarender', [new \Controllers\PrarenderController(), 'sajikan'],
+            [Middleware::batasLaju('publik')]);
+
     // =================================================================
     //  Masuk — tanpa token, dibatasi ketat
     // =================================================================
