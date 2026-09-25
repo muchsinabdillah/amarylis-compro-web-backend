@@ -17,6 +17,7 @@ declare(strict_types=1);
 use Controllers\AdminController;
 use Controllers\AuthController;
 use Controllers\FacilityController;
+use Controllers\McuPasienController;
 use Controllers\McuPerusahaanController;
 use Controllers\MediaController;
 use Controllers\PageController;
@@ -45,6 +46,7 @@ return static function (Router $r): void {
     $penggun  = new UserController();
     $seo      = new SeoController();
     $pasienAuth = new PasienAuthController();
+    $mcuPasien  = new McuPasienController();
     $perusahaanAuth = new PerusahaanAuthController();
     $mcuPerusahaan  = new McuPerusahaanController();
     $reservasi  = new ReservasiController();
@@ -123,7 +125,7 @@ return static function (Router $r): void {
 
     // Pasien — wajib token pasien (tabel pasien_akun; token admin ditolak).
     $r->grup('/api/pasien', [Middleware::batasLaju('pasien', 300), Middleware::authPasien()],
-        static function (Router $r) use ($pasienAuth, $reservasi, $pesanan) {
+        static function (Router $r) use ($pasienAuth, $reservasi, $pesanan, $mcuPasien) {
         $r->get('/saya',                 [$pasienAuth, 'saya']);
         $r->post('/ganti-sandi',         [$pasienAuth, 'gantiSandi']);
         $r->post('/cari-rm',             [$reservasi, 'cariRekamMedik']);
@@ -135,6 +137,11 @@ return static function (Router $r): void {
         $r->get('/pesanan',              [$pesanan, 'milikSaya']);
         $r->post('/pesanan',             [$pesanan, 'buat']);
         $r->post('/pesanan/{id}/batal',  [$pesanan, 'batal']);
+        // Hasil MCU milik pasien sendiri. no_mr diambil dari sesi, bukan
+        // dari kiriman peramban -- lihat Middleware::authPasien().
+        $r->get('/mcu/hasil',            [$mcuPasien, 'daftar']);
+        $r->get('/mcu/hasil/{no_mcu}',   [$mcuPasien, 'detail']);
+        $r->get('/mcu/tren',             [$mcuPasien, 'tren']);
     });
 
     // =================================================================

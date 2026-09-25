@@ -180,8 +180,18 @@ final class Middleware
                 throw HttpException::takSah('Token bukan untuk akun pasien.');
             }
 
+            /*
+             * no_mr ikut dibaca di sini, BUKAN diambil dari token.
+             *
+             * Nomor rekam medik adalah satu-satunya hal yang memisahkan
+             * riwayat kesehatan satu orang dari orang lain di portal ini.
+             * Menaruhnya di token berarti nilainya membeku saat login: bila
+             * petugas menautkan akun ke rekam medik yang berbeda, atau
+             * membatalkan tautannya, token lama tetap membuka data lama.
+             * Dibaca ulang tiap permintaan, perubahannya berlaku seketika.
+             */
             $pasien = Database::satu(
-                'SELECT id, nama, no_hp, is_active FROM pasien_akun WHERE id = :id',
+                'SELECT id, nama, no_hp, no_mr, is_active FROM pasien_akun WHERE id = :id',
                 [':id' => (int) ($klaim['sub'] ?? 0)]);
             if ($pasien === null || !$pasien['is_active']) {
                 throw HttpException::takSah('Akun tidak aktif.');
@@ -191,6 +201,7 @@ final class Middleware
                 'sub'   => (int) $pasien['id'],
                 'nama'  => $pasien['nama'],
                 'no_hp' => $pasien['no_hp'],
+                'no_mr' => $pasien['no_mr'] ?? null,
                 'tipe'  => 'pasien',
                 'izin'  => [],
             ]);

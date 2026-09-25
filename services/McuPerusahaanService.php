@@ -21,7 +21,10 @@ use Core\HttpException;
 final class McuPerusahaanService
 {
     /** Batas satu unggahan. Lebih dari ini dibagi menjadi beberapa berkas. */
-    public const MAKS_PESERTA = 1000;
+    /* Batas di sisi portal hanya penjaga awal supaya berkas raksasa tidak
+       sempat dikirim; yang mengikat tetap batas di SIMRS. Keduanya dibaca
+       dari .env agar tidak bisa bergeser sendiri-sendiri. */
+    public const MAKS_PESERTA = 5000;
 
     private static function panggil(string $jalur, array $data): array
     {
