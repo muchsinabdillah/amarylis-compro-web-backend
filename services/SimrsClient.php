@@ -133,6 +133,72 @@ final class SimrsClient
      * @param array<string,mixed> $data
      * @return array{ok:bool,pesan:string,data:array<int|string,mixed>}
      */
+    /**
+     * Ambil BERKAS dari SIMRS, bukan JSON.
+     *
+     * Dipakai untuk PDF hasil MCU. Isinya diteruskan apa adanya ke peramban;
+     * portal ini tidak menyimpan salinannya, sebab salinan berarti dua versi
+     * hasil pemeriksaan yang bisa berbeda.
+     *
+     * Penolakan tetap datang sebagai JSON. Dibedakan dari berkas lewat tipe
+     * isinya, bukan lewat kode HTTP saja — supaya pesan dari SIMRS ("belum
+     * ditandatangani", "tidak ditemukan") sampai apa adanya ke pengguna.
+     *
+     * @return array{ok:bool,pesan:string,tipe:string,nama:string,isi:string}
+     */
+    public static function berkas(string $jalur, array $data): array
+    {
+        if (!self::terpasang()) {
+            return ['ok' => false, 'pesan' => 'Integrasi SIMRS belum dikonfigurasi.',
+                    'tipe' => '', 'nama' => '', 'isi' => ''];
+        }
+        $url = rtrim((string) Env::get('SIMRS_API_URL'), '/') . '/' . ltrim($jalur, '/');
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, self::opsiLokal($url) + [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HEADER         => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode($data),
+            CURLOPT_TIMEOUT        => self::TIMEOUT_DETIK,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'Accept: application/pdf, application/json',
+                'X-Api-Key: ' . (string) Env::get('SIMRS_API_KEY'),
+            ],
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_SSL_VERIFYPEER => Env::bool('SIMRS_API_VERIFY_SSL', true),
+            CURLOPT_SSL_VERIFYHOST => Env::bool('SIMRS_API_VERIFY_SSL', true) ? 2 : 0,
+        ]);
+
+        $mentah  = curl_exec($ch);
+        $panjang = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $tipe    = (string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+        $galat   = curl_error($ch);
+        curl_close($ch);
+
+        if ($mentah === false) {
+            return ['ok' => false, 'pesan' => 'Tidak dapat menghubungi SIMRS: '
+                    . ($galat !== '' ? $galat : 'sambungan gagal.'),
+                    'tipe' => '', 'nama' => '', 'isi' => ''];
+        }
+
+        $kepala = substr($mentah, 0, $panjang);
+        $isi    = substr($mentah, $panjang);
+
+        if (stripos($tipe, 'pdf') === false) {
+            $j = json_decode($isi, true);
+            return ['ok' => false, 'pesan' => $j['message'] ?? 'Berkas tidak dapat dibuat.',
+                    'tipe' => $tipe, 'nama' => '', 'isi' => ''];
+        }
+
+        preg_match('/filename="?([^"
+]+)"?/i', $kepala, $m);
+        return ['ok' => true, 'pesan' => '', 'tipe' => 'application/pdf',
+                'nama' => $m[1] ?? 'hasil-mcu.pdf', 'isi' => $isi];
+    }
+
     public static function kirim(string $jalur, array $data): array
     {
         if (!self::terpasang()) {

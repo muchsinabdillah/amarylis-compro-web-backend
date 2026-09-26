@@ -91,4 +91,11 @@ final class McuPerusahaanController
             $this->sesi($req), trim((string) ($args['no'] ?? '')),
             (string) $req->str('alasan', '')));
     }
+
+    /** Sertifikat kelayakan kerja sebagai berkas PDF. */
+    public function sertifikatPdf(Request $req, array $args): void
+    {
+        $noMcu = (string) ($args['no_mcu'] ?? $req->str('no_mcu', '') ?? '');
+        McuPasienController::kirimPdf(McuPerusahaanService::sertifikatPdf($this->sesi($req), $noMcu));
+    }
 }

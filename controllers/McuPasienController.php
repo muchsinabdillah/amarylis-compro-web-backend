@@ -40,6 +40,27 @@ final class McuPasienController
         Response::sukses(McuPasienService::detail($this->sesi($req), $noMcu));
     }
 
+    public function laporanPdf(Request $req, array $args): void
+    {
+        $noMcu = (string) ($args['no_mcu'] ?? $req->str('no_mcu', '') ?? '');
+        self::kirimPdf(McuPasienService::laporanPdf($this->sesi($req), $noMcu));
+    }
+
+    /**
+     * Kirim berkas apa adanya ke peramban.
+     *
+     * Tidak lewat Response::sukses(): PDF bukan JSON, dan membungkusnya
+     * base64 di dalam JSON hanya membesarkan berkas sepertiga tanpa alasan.
+     */
+    public static function kirimPdf(array $berkas): void
+    {
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . $berkas['nama'] . '"');
+        header('Content-Length: ' . strlen($berkas['isi']));
+        header('X-Content-Type-Options: nosniff');
+        echo $berkas['isi'];
+    }
+
     public function tren(Request $req): void
     {
         Response::sukses(McuPasienService::tren($this->sesi($req)));

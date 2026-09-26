@@ -70,6 +70,33 @@ final class McuPasienService
         return is_array($r['data']) ? $r['data'] : [];
     }
 
+    /**
+     * Laporan MCU sebagai berkas PDF.
+     *
+     * Berkasnya dibangkitkan SIMRS dan diteruskan apa adanya; portal tidak
+     * menyimpan salinannya. Sertifikat kelayakan kerja sengaja TIDAK
+     * disediakan di sini — isinya ditujukan kepada pemberi kerja, dan yang
+     * dibutuhkan peserta adalah laporannya sendiri yang jauh lebih lengkap.
+     *
+     * @return array{nama:string,isi:string}
+     */
+    public static function laporanPdf(array $sesi, string $noMcu): array
+    {
+        $noMcu = trim($noMcu);
+        if ($noMcu === '') throw HttpException::validasi(['no_mcu' => 'Nomor MCU wajib diisi.']);
+
+        if (!SimrsClient::terpasang()) {
+            throw new HttpException(503, 'Layanan belum tersambung ke SIMRS. Hubungi klinik.');
+        }
+        $r = SimrsClient::berkas('/website/pasien/mcu/laporan-pdf', [
+            'no_mr'  => self::noMr($sesi),
+            'no_mcu' => $noMcu,
+        ]);
+        if (empty($r['ok'])) throw new HttpException(404, $r['pesan'] ?: 'Hasil tidak ditemukan.');
+
+        return ['nama' => $r['nama'], 'isi' => $r['isi']];
+    }
+
     /** Angka riwayat untuk dasbor: tekanan darah, IMT, berat, kelayakan. */
     public static function tren(array $sesi): array
     {

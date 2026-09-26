@@ -121,6 +121,8 @@ return static function (Router $r): void {
         $r->get('/mcu/ringkas',            [$mcuPerusahaan, 'ringkas']);
         $r->get('/mcu/hasil',              [$mcuPerusahaan, 'hasil']);
         $r->get('/mcu/hasil/{id}',         [$mcuPerusahaan, 'hasilDetail']);
+        // Sertifikat kelayakan kerja -- hanya kesimpulan, tanpa rincian medis.
+        $r->get('/mcu/sertifikat/{no_mcu}', [$mcuPerusahaan, 'sertifikatPdf']);
     });
 
     // Pasien — wajib token pasien (tabel pasien_akun; token admin ditolak).
@@ -142,6 +144,7 @@ return static function (Router $r): void {
         $r->get('/mcu/hasil',            [$mcuPasien, 'daftar']);
         $r->get('/mcu/hasil/{no_mcu}',   [$mcuPasien, 'detail']);
         $r->get('/mcu/tren',             [$mcuPasien, 'tren']);
+        $r->get('/mcu/hasil/{no_mcu}/pdf', [$mcuPasien, 'laporanPdf']);
     });
 
     // =================================================================

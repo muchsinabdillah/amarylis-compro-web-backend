@@ -204,4 +204,31 @@ final class McuPerusahaanService
         unset($b['diproses_oleh']);
         return $b;
     }
+
+    /**
+     * Sertifikat kelayakan kerja sebagai berkas PDF.
+     *
+     * Hanya kesimpulan kelayakan dan pembatasannya — rincian medis karyawan
+     * tidak ikut ke tempat kerjanya. SIMRS menolak menerbitkannya bila
+     * kesimpulan belum ditandatangani dokter, dan penolakan itu diteruskan
+     * apa adanya supaya petugas HRD tahu apa yang ditunggu.
+     *
+     * @return array{nama:string,isi:string}
+     */
+    public static function sertifikatPdf(array $sesi, string $noMcu): array
+    {
+        $noMcu = trim($noMcu);
+        if ($noMcu === '') throw HttpException::validasi(['no_mcu' => 'Nomor MCU wajib diisi.']);
+
+        if (!SimrsClient::terpasang()) {
+            throw new HttpException(503, 'Layanan belum tersambung ke SIMRS. Hubungi klinik.');
+        }
+        $r = SimrsClient::berkas('/website/perusahaan/mcu/sertifikat-pdf', [
+            'perusahaan_id' => $sesi['perusahaan_id'],
+            'no_mcu'        => $noMcu,
+        ]);
+        if (empty($r['ok'])) throw new HttpException(422, $r['pesan'] ?: 'Sertifikat tidak dapat dibuat.');
+
+        return ['nama' => $r['nama'], 'isi' => $r['isi']];
+    }
 }
