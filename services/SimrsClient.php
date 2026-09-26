@@ -40,6 +40,37 @@ final class SimrsClient
      *
      * @return array<int|string,mixed>
      */
+    /**
+     * Paksa sambungan ke SIMRS tetap di dalam mesin ini.
+     *
+     * SIMRS dan website berdiri di server yang SAMA, tetapi memanggilnya lewat
+     * nama domainnya membuat permintaannya keluar ke internet, melewati
+     * Cloudflare, lalu kembali. Kunci API karena itu melintasi jaringan publik
+     * berkali-kali setiap hari tanpa satu pun alasan, dan IP pemanggil yang
+     * terlihat SIMRS adalah IP Cloudflare -- sehingga SIMRS tidak punya cara
+     * membedakan panggilan dari websitenya sendiri dan panggilan siapa pun di
+     * internet yang kebetulan memegang kuncinya.
+     *
+     * CURLOPT_RESOLVE menambatkan nama domainnya ke 127.0.0.1: nama host, SNI,
+     * dan pemeriksaan sertifikat tetap apa adanya -- hanya alamat tujuannya
+     * yang tidak lagi keluar rumah.
+     *
+     * Dimatikan dengan SIMRS_API_LOKAL=false bila suatu saat SIMRS dipindah ke
+     * mesin lain.
+     */
+    private static function opsiLokal(string $url): array
+    {
+        if (!Env::bool('SIMRS_API_LOKAL', false)) return [];
+
+        $bagian = parse_url($url);
+        $host    = $bagian['host'] ?? '';
+        if ($host === '') return [];
+        $porta   = $bagian['port'] ?? (($bagian['scheme'] ?? 'https') === 'https' ? 443 : 80);
+        $tujuan  = (string) Env::get('SIMRS_API_LOKAL_IP', '127.0.0.1');
+
+        return [CURLOPT_RESOLVE => [$host . ':' . $porta . ':' . $tujuan]];
+    }
+
     public static function ambil(string $jalur): array
     {
         if (!self::terpasang()) {
@@ -50,7 +81,7 @@ final class SimrsClient
         $url = rtrim((string) Env::get('SIMRS_API_URL'), '/') . '/' . ltrim($jalur, '/');
 
         $ch = curl_init($url);
-        curl_setopt_array($ch, [
+        curl_setopt_array($ch, self::opsiLokal($url) + [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => self::TIMEOUT_DETIK,
             CURLOPT_CONNECTTIMEOUT => 8,
@@ -110,7 +141,7 @@ final class SimrsClient
         $url = rtrim((string) Env::get('SIMRS_API_URL'), '/') . '/' . ltrim($jalur, '/');
 
         $ch = curl_init($url);
-        curl_setopt_array($ch, [
+        curl_setopt_array($ch, self::opsiLokal($url) + [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => self::TIMEOUT_DETIK,
             CURLOPT_CONNECTTIMEOUT => 8,
